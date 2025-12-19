@@ -31,7 +31,6 @@ const CAR_TYPES: CarType[] = [
   { id: '3', name: 'Fura', price: 180000 },
 ]
 
-// Dark mode xarita stili
 const darkMapStyle = [
   { elementType: 'geometry', stylers: [{ color: '#212121' }] },
   { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
@@ -58,41 +57,27 @@ export default function CreateOrder() {
     longitudeDelta: 0.01,
   })
 
-  const [centerCoord, setCenterCoord] = useState({
-    latitude: 41.2995,
-    longitude: 69.2401,
-  })
-
   const [from, setFrom] = useState<Location | null>(null)
   const [to, setTo] = useState<Location | null>(null)
   const [car, setCar] = useState<CarType | null>(null)
   const [isSelecting, setIsSelecting] = useState<'from' | 'to' | null>('from')
 
+  // Markaziy koordinatani saqlaymiz
+  const [centerCoord, setCenterCoord] = useState({
+    latitude: 41.2995,
+    longitude: 69.2401,
+  })
+
   const handleRegionChangeComplete = (newRegion: any) => {
+    // Faqat markaziy koordinatani yangilaymiz
     setCenterCoord({
       latitude: newRegion.latitude,
       longitude: newRegion.longitude,
     })
-
-    // Auto tanlash
-    if (isSelecting === 'from' && !from) {
-      setFrom({
-        title: 'Tanlangan joy',
-        lat: newRegion.latitude,
-        lng: newRegion.longitude,
-      })
-      setIsSelecting('to')
-    } else if (isSelecting === 'to' && from && !to) {
-      setTo({
-        title: 'Manzil',
-        lat: newRegion.latitude,
-        lng: newRegion.longitude,
-      })
-      setIsSelecting(null)
-    }
   }
 
   const handleSetFrom = () => {
+    // Markaziy pin koordinatalarini ishlatamiz
     setFrom({
       title: 'Tanlangan joy',
       lat: centerCoord.latitude,
@@ -102,6 +87,7 @@ export default function CreateOrder() {
   }
 
   const handleSetTo = () => {
+    // Markaziy pin koordinatalarini ishlatamiz
     setTo({
       title: 'Manzil',
       lat: centerCoord.latitude,
@@ -123,6 +109,14 @@ export default function CreateOrder() {
     setIsSelecting('to')
   }
 
+  const handleConfirmLocation = () => {
+    if (isSelecting === 'from') {
+      handleSetFrom()
+    } else if (isSelecting === 'to') {
+      handleSetTo()
+    }
+  }
+
   return (
     <View style={styles.container}>
       {/* Xarita */}
@@ -139,8 +133,14 @@ export default function CreateOrder() {
           <Marker
             coordinate={{ latitude: from.lat, longitude: from.lng }}
             title="Qayerdan"
+            anchor={{ x: 0.5, y: 1 }}
           >
-            <Text style={styles.markerText}>📍</Text>
+            <View style={styles.customMarkerFrom}>
+              <View style={styles.markerCircle}>
+                <View style={styles.markerInner} />
+              </View>
+              <View style={styles.markerPin} />
+            </View>
           </Marker>
         )}
 
@@ -148,27 +148,49 @@ export default function CreateOrder() {
           <Marker
             coordinate={{ latitude: to.lat, longitude: to.lng }}
             title="Qayerga"
+            anchor={{ x: 0.5, y: 1 }}
           >
-            <Text style={styles.markerText}>🏁</Text>
+            <View style={styles.customMarkerTo}>
+              <View style={styles.markerCircleTo}>
+                <View style={styles.markerInnerTo} />
+              </View>
+              <View style={styles.markerPinTo} />
+            </View>
           </Marker>
         )}
       </MapView>
 
       {/* Markaziy pin */}
-      <View style={styles.centerPin} pointerEvents="none">
-        <Text style={styles.pinEmoji}>📍</Text>
-        <View style={styles.pinShadow} />
-      </View>
+      {isSelecting && (
+        <View style={styles.centerPinContainer} pointerEvents="none">
+          <View style={styles.centerPin}>
+            <View style={styles.pinCircle}>
+              <View style={styles.pinInner} />
+            </View>
+            <View style={styles.pinStick} />
+          </View>
+        </View>
+      )}
 
       {/* Status indicator */}
       {isSelecting && (
         <View style={styles.statusBox}>
           <Text style={styles.statusText}>
             {isSelecting === 'from' 
-              ? '📍 Qayerdan joyni tanlang' 
-              : '🏁 Qayerga joyni tanlang'}
+              ? 'Qayerdan joyni tanlang' 
+              : 'Qayerga joyni tanlang'}
           </Text>
         </View>
+      )}
+
+      {/* Tasdiqlash tugmasi */}
+      {isSelecting && (
+        <TouchableOpacity
+          style={styles.confirmButton}
+          onPress={handleConfirmLocation}
+        >
+          <Text style={styles.confirmButtonText}>✓ Tasdiqlash</Text>
+        </TouchableOpacity>
       )}
 
       {/* Pastki panel */}
@@ -178,10 +200,13 @@ export default function CreateOrder() {
             {/* FROM */}
             <TouchableOpacity
               style={[styles.input, from && styles.inputFilled]}
-              onPress={from ? handleEditFrom : handleSetFrom}
+              onPress={handleEditFrom}
             >
-              <View style={styles.inputIcon}>
-                <Text style={styles.iconText}>📍</Text>
+              <View style={[styles.inputIcon, from && styles.inputIconActive]}>
+                <View style={styles.miniMarkerFrom}>
+                  <View style={styles.miniCircle} />
+                  <View style={styles.miniPin} />
+                </View>
               </View>
               <View style={styles.inputContent}>
                 <Text style={styles.label}>Qayerdan</Text>
@@ -190,18 +215,23 @@ export default function CreateOrder() {
                 </Text>
               </View>
               {from && (
-                <Text style={styles.editIcon}>✏️</Text>
+                <View style={styles.editButton}>
+                  <Text style={styles.editIcon}>✏</Text>
+                </View>
               )}
             </TouchableOpacity>
 
             {/* TO */}
             <TouchableOpacity
-              style={[styles.input, to && styles.inputFilled]}
-              onPress={to ? handleEditTo : handleSetTo}
+              style={[styles.input, to && styles.inputFilled, !from && styles.inputDisabled]}
+              onPress={handleEditTo}
               disabled={!from}
             >
-              <View style={styles.inputIcon}>
-                <Text style={styles.iconText}>🏁</Text>
+              <View style={[styles.inputIcon, to && styles.inputIconActive]}>
+                <View style={styles.miniMarkerTo}>
+                  <View style={styles.miniCircleTo} />
+                  <View style={styles.miniPinTo} />
+                </View>
               </View>
               <View style={styles.inputContent}>
                 <Text style={styles.label}>Qayerga</Text>
@@ -210,7 +240,9 @@ export default function CreateOrder() {
                 </Text>
               </View>
               {to && (
-                <Text style={styles.editIcon}>✏️</Text>
+                <View style={styles.editButton}>
+                  <Text style={styles.editIcon}>✏</Text>
+                </View>
               )}
             </TouchableOpacity>
 
@@ -219,16 +251,51 @@ export default function CreateOrder() {
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Mashina turi</Text>
 
-                {CAR_TYPES.map(item => (
+                {CAR_TYPES.map((item, index) => (
                   <TouchableOpacity
                     key={item.id}
                     style={[styles.car, car?.id === item.id && styles.activeCar]}
                     onPress={() => setCar(item)}
                   >
                     <View style={styles.carLeft}>
-                      <Text style={styles.carEmoji}>
-                        {item.id === '1' ? '🚐' : item.id === '2' ? '🚚' : '🚛'}
-                      </Text>
+                      <View style={styles.carIconContainer}>
+                        {index === 0 && (
+                          <View style={styles.carIconSmall}>
+                            <View style={styles.carBody}>
+                              <View style={styles.carWindow} />
+                            </View>
+                            <View style={styles.carWheels}>
+                              <View style={styles.wheel} />
+                              <View style={styles.wheel} />
+                            </View>
+                          </View>
+                        )}
+                        {index === 1 && (
+                          <View style={styles.carIconMedium}>
+                            <View style={styles.carBodyMedium}>
+                              <View style={styles.carCabin} />
+                              <View style={styles.carCargo} />
+                            </View>
+                            <View style={styles.carWheels}>
+                              <View style={styles.wheel} />
+                              <View style={styles.wheel} />
+                            </View>
+                          </View>
+                        )}
+                        {index === 2 && (
+                          <View style={styles.carIconLarge}>
+                            <View style={styles.carBodyLarge}>
+                              <View style={styles.carCabinLarge} />
+                              <View style={styles.carCargoLarge} />
+                            </View>
+                            <View style={styles.carWheelsLarge}>
+                              <View style={styles.wheel} />
+                              <View style={styles.wheel} />
+                              <View style={styles.wheel} />
+                            </View>
+                          </View>
+                        )}
+                      </View>
                       <Text style={styles.carName}>{item.name}</Text>
                     </View>
                     <Text style={styles.carPrice}>
@@ -254,7 +321,7 @@ export default function CreateOrder() {
                   })
                 }
               >
-                <Text style={styles.orderText}>🚚 Mashinani chaqirish</Text>
+                <Text style={styles.orderText}>Mashinani chaqirish</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -274,30 +341,187 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
 
-  centerPin: {
+  // Markaziy pin yangi dizayn
+  centerPinContainer: {
     position: 'absolute',
-    top: height * 0.3,
-    left: '50%',
-    marginLeft: -20,
-    zIndex: 1,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: height * 0.15,
+  },
+
+  centerPin: {
     alignItems: 'center',
   },
 
-  pinEmoji: {
-    fontSize: 40,
+  pinCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#facc15',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#facc15',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    elevation: 8,
   },
 
-  pinShadow: {
-    width: 20,
-    height: 8,
+  pinInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     backgroundColor: '#000',
-    opacity: 0.3,
-    borderRadius: 10,
-    marginTop: 4,
   },
 
-  markerText: {
-    fontSize: 32,
+  pinStick: {
+    width: 3,
+    height: 24,
+    backgroundColor: '#facc15',
+    marginTop: -2,
+  },
+
+  // Marker dizayni - "from"
+  customMarkerFrom: {
+    alignItems: 'center',
+  },
+
+  markerCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#10b981',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: '#fff',
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+
+  markerInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#fff',
+  },
+
+  markerPin: {
+    width: 0,
+    height: 0,
+    backgroundColor: 'transparent',
+    borderStyle: 'solid',
+    borderLeftWidth: 8,
+    borderRightWidth: 8,
+    borderTopWidth: 12,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderTopColor: '#10b981',
+    marginTop: -3,
+  },
+
+  // Marker dizayni - "to"
+  customMarkerTo: {
+    alignItems: 'center',
+  },
+
+  markerCircleTo: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#ef4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: '#fff',
+    shadowColor: '#ef4444',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+
+  markerInnerTo: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#fff',
+  },
+
+  markerPinTo: {
+    width: 0,
+    height: 0,
+    backgroundColor: 'transparent',
+    borderStyle: 'solid',
+    borderLeftWidth: 8,
+    borderRightWidth: 8,
+    borderTopWidth: 12,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderTopColor: '#ef4444',
+    marginTop: -3,
+  },
+
+  // Mini markerlar inputlar uchun
+  miniMarkerFrom: {
+    alignItems: 'center',
+  },
+
+  miniCircle: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#10b981',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+
+  miniPin: {
+    width: 0,
+    height: 0,
+    backgroundColor: 'transparent',
+    borderStyle: 'solid',
+    borderLeftWidth: 4,
+    borderRightWidth: 4,
+    borderTopWidth: 6,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderTopColor: '#10b981',
+    marginTop: -2,
+  },
+
+  miniMarkerTo: {
+    alignItems: 'center',
+  },
+
+  miniCircleTo: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#ef4444',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+
+  miniPinTo: {
+    width: 0,
+    height: 0,
+    backgroundColor: 'transparent',
+    borderStyle: 'solid',
+    borderLeftWidth: 4,
+    borderRightWidth: 4,
+    borderTopWidth: 6,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderTopColor: '#ef4444',
+    marginTop: -2,
   },
 
   statusBox: {
@@ -311,9 +535,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     shadowColor: '#facc15',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.4,
     shadowRadius: 8,
-    elevation: 5,
+    elevation: 8,
   },
 
   statusText: {
@@ -322,8 +546,26 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  editIcon: {
-    fontSize: 20,
+  confirmButton: {
+    position: 'absolute',
+    bottom: height * 0.65,
+    left: '50%',
+    marginLeft: -80,
+    backgroundColor: '#10b981',
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 24,
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+
+  confirmButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
   },
 
   bottomPanel: {
@@ -348,7 +590,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: '#333',
     flexDirection: 'row',
     alignItems: 'center',
@@ -359,9 +601,13 @@ const styles = StyleSheet.create({
     borderColor: '#facc15',
   },
 
+  inputDisabled: {
+    opacity: 0.5,
+  },
+
   inputIcon: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     backgroundColor: '#3a3a3a',
     borderRadius: 12,
     alignItems: 'center',
@@ -369,8 +615,8 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
 
-  iconText: {
-    fontSize: 20,
+  inputIconActive: {
+    backgroundColor: '#2d3748',
   },
 
   inputContent: {
@@ -381,12 +627,27 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
     fontSize: 13,
     marginBottom: 4,
+    fontWeight: '500',
   },
 
   value: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
+  },
+
+  editButton: {
+    width: 32,
+    height: 32,
+    backgroundColor: '#3a3a3a',
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  editIcon: {
+    fontSize: 16,
+    color: '#facc15',
   },
 
   section: {
@@ -397,7 +658,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 19,
     fontWeight: '700',
-    marginBottom: 14,
+    marginBottom: 16,
   },
 
   car: {
@@ -405,9 +666,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: '#2a2a2a',
-    padding: 16,
+    padding: 18,
     borderRadius: 16,
-    marginBottom: 10,
+    marginBottom: 12,
     borderWidth: 2,
     borderColor: '#333',
   },
@@ -422,9 +683,115 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  carEmoji: {
-    fontSize: 24,
-    marginRight: 12,
+  carIconContainer: {
+    width: 48,
+    height: 32,
+    marginRight: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Kichik mashina (Labo)
+  carIconSmall: {
+    width: 40,
+    height: 28,
+  },
+
+  carBody: {
+    width: 40,
+    height: 20,
+    backgroundColor: '#fff',
+    borderRadius: 6,
+    position: 'relative',
+  },
+
+  carWindow: {
+    width: 16,
+    height: 10,
+    backgroundColor: '#666',
+    position: 'absolute',
+    top: 2,
+    left: 4,
+    borderRadius: 3,
+  },
+
+  carWheels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 4,
+    marginTop: -4,
+  },
+
+  wheel: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#333',
+    borderWidth: 1,
+    borderColor: '#666',
+  },
+
+  // O'rta mashina (Gazel)
+  carIconMedium: {
+    width: 44,
+    height: 28,
+  },
+
+  carBodyMedium: {
+    flexDirection: 'row',
+    height: 20,
+  },
+
+  carCabin: {
+    width: 14,
+    height: 20,
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 6,
+    borderBottomLeftRadius: 6,
+  },
+
+  carCargo: {
+    width: 26,
+    height: 20,
+    backgroundColor: '#ddd',
+    borderTopRightRadius: 6,
+    borderBottomRightRadius: 6,
+    marginLeft: 2,
+  },
+
+  // Katta mashina (Fura)
+  carIconLarge: {
+    width: 48,
+    height: 28,
+  },
+
+  carBodyLarge: {
+    flexDirection: 'row',
+    height: 20,
+  },
+
+  carCabinLarge: {
+    width: 12,
+    height: 20,
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 6,
+    borderBottomLeftRadius: 6,
+  },
+
+  carCargoLarge: {
+    width: 32,
+    height: 20,
+    backgroundColor: '#ddd',
+    borderTopRightRadius: 6,
+    borderBottomRightRadius: 6,
+    marginLeft: 2,
+  },
+
+  carWheelsLarge: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 2,
+    marginTop: -4,
   },
 
   carName: {
@@ -445,6 +812,11 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     borderRadius: 16,
     alignItems: 'center',
+    shadowColor: '#facc15',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
 
   orderText: {
